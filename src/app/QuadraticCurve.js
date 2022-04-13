@@ -1,3 +1,5 @@
+import { vec2 } from 'gl-matrix'
+
 class QuadraticCurve {
   constructor() {
     this.curvePoints = []
@@ -6,13 +8,13 @@ class QuadraticCurve {
   }
 
   addCurvePoint(x, y) {
-    this.curvePoints.push({ x, y })
+    this.curvePoints.push(vec2.fromValues(x, y))
     this.calculateImplicitControlPoints()
   }
 
   addControlPoint(x, y) {
     if (this.controlPoints.length + 1 < this.curvePoints.length) {
-      this.controlPoints.push({ x, y })
+      this.controlPoints.push(vec2.fromValues(x, y))
       this.calculateImplicitControlPoints()
     }
   }
@@ -28,14 +30,13 @@ class QuadraticCurve {
 
     const nExpectedCurvePoints = this.curvePoints.length - 1
     this.implicitControlPoints = []
+    const vBase = vec2.create()
     for (let i = this.controlPoints.length; i < nExpectedCurvePoints; i++) {
       const currentControlPoint = this.controlPoints[i - 1]
       const nextCurvePoint = this.curvePoints[i]
-
-      const dx = nextCurvePoint.x - currentControlPoint.x
-      const dy = nextCurvePoint.y - currentControlPoint.y
-
-      this.implicitControlPoints.push({ x: nextCurvePoint.x + dx, y: nextCurvePoint.y + dy })
+      vec2.sub(vBase, nextCurvePoint, currentControlPoint)
+      vec2.add(vBase, vBase, nextCurvePoint)
+      this.implicitControlPoints.push(vBase)
     }
   }
 
@@ -45,12 +46,16 @@ class QuadraticCurve {
       const prevCurvePoint = this.curvePoints[i]
       const nextCurvePoint = this.curvePoints[i + 1]
 
-      return length + Math.sqrt(Math.pow(controlPoint.x - prevCurvePoint.x, 2) + Math.pow(controlPoint.y - prevCurvePoint.y, 2)) + Math.sqrt(Math.pow(nextCurvePoint.x - controlPoint.x, 2) + Math.pow(nextCurvePoint.y - controlPoint.y, 2))
+      return length + Math.sqrt(Math.pow(controlPoint[0] - prevCurvePoint[0], 2) + Math.pow(controlPoint[1] - prevCurvePoint[1], 2)) + Math.sqrt(Math.pow(nextCurvePoint[0] - controlPoint[0], 2) + Math.pow(nextCurvePoint[1] - controlPoint[1], 2))
     }, 0)
   }
 
+  getNormal(t, p0, p1, p2) {
+
+  }
+
   approximate() {
-    const step = 0.01
+    const step = 0.1
     const controlPoints = this.controlPoints.concat(this.implicitControlPoints)
     const curveCoords = []
     const normals = []
@@ -58,31 +63,26 @@ class QuadraticCurve {
       const prevCurvePoint = this.curvePoints[i]
       const nextCurvePoint = this.curvePoints[i + 1]
       const controlPoint = controlPoints[i]
-
-      const dirA = [
-        (controlPoint.x - prevCurvePoint.x) * step,
-        (controlPoint.y - prevCurvePoint.y) * step
-      ]
-      const dirB = [
-        (nextCurvePoint.x - controlPoint.x) * step,
-        (nextCurvePoint.y - controlPoint.y) * step
-      ]
-
-      const A = [prevCurvePoint.x, prevCurvePoint.y]
-      const B = [controlPoint.x, controlPoint.y]
-
+      
+      const v1 = vec2.create()
+      const v2 = vec2.create()
+      const v3 = vec2.create()
       for (let t = 0; t < 1; t += step) {
-        const curveCoordX = A[0] + (B[0] - A[0]) * t
-        const curveCoordY = A[1] + (B[1] - A[1]) * t
+        // const curveCoordX = A[0] + (B[0] - A[0]) * t
+        // const curveCoordY = A[1] + (B[1] - A[1]) * t
 
-        A[0] += dirA[0]
-        A[1] += dirA[1]
-        B[0] += dirB[0]
-        B[1] += dirB[1]
+        // A[0] += dirA[0]
+        // A[1] += dirA[1]
+        // B[0] += dirB[0]
+        // B[1] += dirB[1]
+        vec2.scale(v1, prevCurvePoint, Math.pow(1 - t, 2))
+        vec2.scale(v2, controlPoint, 2 * (1 - t) * t)
 
-        curveCoords.push([curveCoordX, curveCoordY])
-        const diff1 = [(controlPoint.x - prevCurvePoint.x) * 2 * (1-t), (controlPoint.y - prevCurvePoint.y) * 2 * (1-t)]
-        const diff2 = [(nextCurvePoint.x - controlPoint.x) * 2 * t, (nextCurvePoint.y - controlPoint.y) * 2 * t]
+        vec2.scaleAndAdd(v3, vec2.add(v1, v1, v2), nextCurvePoint, t * t)
+        curveCoords.push([v3[0],v3[1]])
+        console.log(v3)
+        const diff1 = [(controlPoint[0] - prevCurvePoint[0]) * 2 * (1-t), (controlPoint[1] - prevCurvePoint[1]) * 2 * (1-t)]
+        const diff2 = [(nextCurvePoint[0] - controlPoint[0]) * 2 * t, (nextCurvePoint[1] - controlPoint[1]) * 2 * t]
         const normal = [(diff1[0] + diff2[0]), diff1[1] + diff2[1]]
         const normalLen = Math.sqrt(Math.pow(normal[0], 2) + Math.pow(normal[1], 2))
         normal[0] /= normalLen
@@ -92,8 +92,8 @@ class QuadraticCurve {
         const k = normal[0]
         normal[0] = -normal[1]
         normal[1] = k
-        normal[0] += curveCoordX
-        normal[1] += curveCoordY
+        normal[0] += v3[0]
+        normal[1] += v3[1]
         normals.push(normal)
       }
     }
@@ -103,5 +103,4 @@ class QuadraticCurve {
   }
 }
 
-module.exports = QuadraticCurve
-
+export default QuadraticCurve

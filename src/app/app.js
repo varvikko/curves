@@ -26,10 +26,8 @@ let lineBuffer
 const locations = { }
 const curve = new QuadraticCurve()
 curve.addCurvePoint(-100, -100)
-curve.addCurvePoint(0, 0)
 curve.addCurvePoint(100, 100)
-curve.addControlPoint(100, -50)
-curve.addControlPoint(-100, 50)
+curve.addControlPoint(-100, 100)
 const [curvePoints, normals] = curve.approximate()
 
 let mouseDown = false
@@ -109,7 +107,7 @@ function draw(context, shaderProgram) {
   context.context.bindBuffer(context.context.ARRAY_BUFFER, lineBuffer)
   gl.vertexAttribPointer(locations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
 
-  gl.drawArrays(gl.LINES, 0, curvePoints.length*2)
+  // gl.drawArrays(gl.LINES, 0, curvePoints.length*2)
 }
 
 function renderBatch(batch, vBuffer, gl) {
